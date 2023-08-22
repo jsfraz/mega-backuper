@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN go build -o backuper
+RUN go build -o mega-backuper
 
 # Start a new stage using a minimal Alpine image
 FROM alpine:latest
@@ -23,10 +23,10 @@ FROM alpine:latest
 WORKDIR /app
 
 # Copy the built binary from the previous stage
-COPY --from=build /app/backuper .
+COPY --from=build /app/mega-backuper .
 
-# Copy backuper.json
-COPY backuper.json /app/backuper.json
+# Copy mega-backuper.json
+COPY mega-backuper.json /app/mega-backuper.json
 
 # Create temp folder for backups
 RUN mkdir temp
@@ -35,4 +35,4 @@ RUN mkdir temp
 RUN apk add --no-cache megacmd
 
 # Command to run the application
-CMD ["./backuper"]
+CMD ["./mega-backuper"]

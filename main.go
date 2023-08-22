@@ -1,7 +1,7 @@
 package main
 
 import (
-	"jsfraz/backuper/utils"
+	"jsfraz/mega-backuper/utils"
 )
 
 func main() {

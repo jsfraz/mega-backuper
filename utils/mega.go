@@ -1,6 +1,6 @@
 package utils
 
-import "jsfraz/backuper/models"
+import "jsfraz/mega-backuper/models"
 
 // Does Mega login.
 //

@@ -1,14 +1,14 @@
 version: "3.3"
-name: backuper
+name: mega-backuper
 
 services:
-  backuper:
-    image: jsfraz/backuper
-    container_name: backuper
+  mega-backuper:
+    image: jsfraz/mega-backuper
+    container_name: mega-backuper
     restart: always
     volumes:
       - temp:/app/temp
-      # - ./backuper.json:/app/backuper.json
+      # - ./mega-backuper.json:/app/mega-backuper.json
 
 volumes:
   temp:

@@ -1,3 +1,3 @@
-# Backuper
+# mega-backuper
 
-`sudo docker build -t jsfraz/backuper:latest .`
+`sudo docker build -t jsfraz/mega-backuper:latest .`

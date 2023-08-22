@@ -1,4 +1,4 @@
-module jsfraz/backuper
+module jsfraz/mega-backuper
 
 go 1.21
 
