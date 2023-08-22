@@ -1,0 +1,14 @@
+version: "3.3"
+name: backuper
+
+services:
+  backuper:
+    image: jsfraz/backuper
+    container_name: backuper
+    restart: always
+    volumes:
+      - temp:/app/temp
+      # - ./backuper.json:/app/backuper.json
+
+volumes:
+  temp:

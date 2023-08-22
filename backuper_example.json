@@ -1,0 +1,24 @@
+{
+    "megaEmail": "user@example.com",
+    "megaPassword": "12345678",
+    "backups": [
+        {
+            "name": "mariadb",
+            "megaDir": "/mediawiki/mariadb/",
+            "lastCopies": 10,
+            "cron": "0 0 * * *",
+            "type": "mysql",
+            "mysqlUser": "wiki",
+            "mysqlPassword": "12345678",
+            "mysqlDb": "wiki"
+        },
+        {
+            "name": "mediawiki",
+            "megaDir": "/mediawiki/mediawiki/",
+            "lastCopies": 10,
+            "cron": "0 0 * * *",
+            "type": "containerdir",
+            "containerdir": "/var/www/html/"
+        }
+    ]
+}
