@@ -15,7 +15,7 @@ import (
 //	@return *models.BackupSettings
 func LoadJson() *models.BackupSettings {
 	// read json from file
-	data, err := os.ReadFile("backuper_example.json")
+	data, err := os.ReadFile("backuper.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
