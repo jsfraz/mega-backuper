@@ -1,7 +1,7 @@
 package models
 
 type BackupSettings struct {
-	MegaEmail    string   `json:"megaEmail" validate:"email,required"`
-	MegaPassword string   `json:"megaPassword" validate:"required"`
-	Backups      []Backup `json:"backups" validate:"required"`
+	Email    string   `json:"email" validate:"email,required"`
+	Password string   `json:"password" validate:"required"`
+	Backups  []Backup `json:"backups" validate:"required"`
 }

@@ -1,6 +1,6 @@
 {
-    "megaEmail": "user@example.com",
-    "megaPassword": "12345678",
+    "email": "user@example.com",
+    "password": "12345678",
     "backups": [
         {
             "name": "mariadb",

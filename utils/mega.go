@@ -1,12 +1,22 @@
 package utils
 
-import "jsfraz/mega-backuper/models"
+import (
+	"log"
+)
 
-// Does Mega login.
-//
-//	@param email
-//	@param password
-//	@return error
-func MegaLogin(settings models.BackupSettings) error {
-	return Exec("mega-login", settings.MegaEmail, settings.MegaPassword)
+// Mega login
+func Login() {
+	s := GetSingleton()
+	log.Println("Logging in...")
+	// login
+	err := s.Mega.Login(s.Settings.Email, s.Settings.Password)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	// get logged user
+	user, err := s.Mega.GetUser()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Println("Logged as " + user.Name + ".")
 }

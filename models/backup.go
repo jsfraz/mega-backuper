@@ -12,6 +12,6 @@ type Backup struct {
 	MysqlPassword string `json:"mysqlPassword" validate:"required_if=Type mysql,omitempty,required"`
 	MysqlDb       string `json:"mysqlDb" validate:"required_if=Type mysql,omitempty,required"`
 	// volume (validate if Type == volume)
-	Volume  string   `json:"volume" validate:"required_if=Type volume,omitempty,dirpath"`
+	Volume  string   `json:"volume" validate:"required_if=Type volume,omitempty"`
 	Subdirs []string `json:"subdirs"`
 }

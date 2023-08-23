@@ -2,10 +2,9 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
 	"jsfraz/mega-backuper/models"
+	"log"
 	"os"
-	"os/exec"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -13,20 +12,20 @@ import (
 // Reads JSON from file. Exits wit hstatus 1 on error.
 //
 //	@return *models.BackupSettings
-func LoadJson() *models.BackupSettings {
+func LoadSettings() *models.BackupSettings {
+	log.Println("Loading settings..")
 	// read json from file
-	data, err := os.ReadFile("backuper.json")
+	data, err := os.ReadFile("backuper_example.json")
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 	// unmarshall json
 	var settings models.BackupSettings
 	err = json.Unmarshal(data, &settings)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
+	log.Println("Settings loaded.")
 	return &settings
 }
 
@@ -34,32 +33,19 @@ func LoadJson() *models.BackupSettings {
 //
 //	@param settings
 func ValidateSettings(settings models.BackupSettings) {
+	log.Println("Validating settings..")
 	validator := validator.New()
 	// validate BackupSettings struct
 	err := validator.Struct(settings)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 	// validate Backup struct
 	for _, element := range settings.Backups {
 		err = validator.Struct(element)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			log.Fatal(err)
 		}
 	}
-}
-
-// Executes system command.
-//
-//	@param name
-//	@param arg
-//	@return error
-func Exec(name string, arg ...string) error {
-	out, err := exec.Command(name, arg...).Output()
-	if err != nil {
-		fmt.Println(string(out))
-	}
-	return err
+	log.Println("Settings OK.")
 }

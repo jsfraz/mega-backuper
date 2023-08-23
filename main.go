@@ -2,14 +2,28 @@ package main
 
 import (
 	"jsfraz/mega-backuper/utils"
+	"log"
+
+	"github.com/t3rm1n4l/go-mega"
 )
 
 func main() {
-	// read json or exit
-	settings := utils.LoadJson()
+	// singleton
+	s := utils.GetSingleton()
+	// log settings
+	log.SetPrefix("mega-backuper: ")
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	// load settings or exit
+	settings := utils.LoadSettings()
 	// validate struct or exit
 	utils.ValidateSettings(*settings)
+	s.Settings = settings
 
-	// mega login
-	_ = utils.MegaLogin(*settings)
+	// mega instance
+	m := mega.New()
+	s.Mega = m
+
+	// login or exit
+	utils.Login()
 }
