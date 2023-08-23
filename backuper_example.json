@@ -17,8 +17,11 @@
             "megaDir": "/mediawiki/mediawiki/",
             "lastCopies": 10,
             "cron": "0 0 * * *",
-            "type": "containerdir",
-            "containerdir": "/var/www/html/"
+            "type": "volume",
+            "volume": "html",
+            "subdirs": [
+                "images"
+            ]
         }
     ]
 }
