@@ -1,14 +1,52 @@
 version: "3.3"
-name: mega-backuper
+name: backuper-example
 
 services:
-  mega-backuper:
-    image: jsfraz/mega-backuper
-    container_name: mega-backuper
+  # mariadb
+  # TODO load sample sql dump
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
     restart: always
     volumes:
-      - temp:/app/temp
-      # - ./mega-backuper.json:/app/mega-backuper.json
+      - mariadb:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=12345678
+      - MYSQL_DATABASE=example
+      - MYSQL_USER=example
+      - MYSQL_PASSWORD=12345678
+    networks:
+      - mediawiki
+
+  # mediawiki
+  mediawiki:
+    image: mediawiki:latest
+    container_name: mediawiki
+    restart: always
+    # unnecessary for testing purposes
+    # ports:
+    #  - "80:80"
+    volumes:
+      - mediawiki:/var/www/html
+      # unnecessary for testing purposes
+      # - ./LocalSettings.php:/var/www/html/LocalSettings.php
+    networks:
+      - mediawiki
+
+  # backuper
+  mega-backuper:
+    image: jsfraz/mega-backuper:latest
+    container_name: mega-backuper
+    # TODO restart policy
+    # restart: always
+    volumes:
+      - mediawiki:/tmp/mediawiki    # volume to backup
+      - ./backuper:/app/backuper.json   # backuper settings
 
 volumes:
-  temp:
+  mediawiki:
+  mariadb:
+
+networks:
+  mediawiki:
+    name: mediawiki

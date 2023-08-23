@@ -15,7 +15,8 @@ import (
 func LoadSettings() *models.BackupSettings {
 	log.Println("Loading settings..")
 	// read json from file
-	data, err := os.ReadFile("backuper_example.json")
+	// TODO change to backuper.json
+	data, err := os.ReadFile("backuper_test.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,6 +30,7 @@ func LoadSettings() *models.BackupSettings {
 	return &settings
 }
 
+// TODO validate unique names and volume subdirs
 // Validates struct. Exits wit hstatus 1 on error.
 //
 //	@param settings

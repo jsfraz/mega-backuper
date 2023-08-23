@@ -28,8 +28,5 @@ COPY --from=build /app/mega-backuper .
 # Copy mega-backuper.json
 COPY backuper.json /app/backuper.json
 
-# Create temp folder for backups
-RUN mkdir temp
-
 # Command to run the application
 CMD ["./mega-backuper"]

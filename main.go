@@ -14,6 +14,8 @@ func main() {
 	log.SetPrefix("mega-backuper: ")
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
+	log.Println("Started.")
+
 	// load settings or exit
 	settings := utils.LoadSettings()
 	// validate struct or exit
@@ -26,4 +28,7 @@ func main() {
 
 	// login or exit
 	utils.Login()
+
+	// check volumes
+	utils.CheckVolumes()
 }
