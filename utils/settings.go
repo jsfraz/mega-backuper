@@ -12,7 +12,7 @@ import (
 // Reads JSON from file. Exits wit hstatus 1 on error.
 //
 //	@return *models.BackupSettings
-func LoadSettings() *models.BackupSettings {
+func LoadSettings() models.BackupSettings {
 	log.Println("Loading settings..")
 	// read json from file
 	// TODO change to backuper.json
@@ -27,7 +27,7 @@ func LoadSettings() *models.BackupSettings {
 		log.Fatal(err)
 	}
 	log.Println("Settings loaded.")
-	return &settings
+	return settings
 }
 
 // TODO validate unique names and volume subdirs

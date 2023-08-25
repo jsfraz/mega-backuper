@@ -8,8 +8,8 @@ import (
 
 // https://blog.devgenius.io/singleton-pattern-in-go-4faea607ad0f
 type Singleton struct {
+	Settings models.BackupSettings
 	Mega     *mega.Mega
-	Settings *models.BackupSettings
 }
 
 var instance *Singleton

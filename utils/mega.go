@@ -4,17 +4,17 @@ import (
 	"log"
 )
 
-// Mega login
+// Login to Mega or exit  program on fail.
 func Login() {
-	s := GetSingleton()
+	singleton := GetSingleton()
 	log.Println("Logging in...")
 	// login
-	err := s.Mega.Login(s.Settings.Email, s.Settings.Password)
+	err := singleton.Mega.Login(singleton.Settings.Email, singleton.Settings.Password)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	// get logged user
-	user, err := s.Mega.GetUser()
+	user, err := singleton.Mega.GetUser()
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// Check if volume directories exists or exit program on fail.
 func CheckVolumes() {
 	// singleton
 	s := GetSingleton()

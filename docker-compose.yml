@@ -37,11 +37,12 @@ services:
   mega-backuper:
     image: jsfraz/mega-backuper:latest
     container_name: mega-backuper
-    # TODO restart policy
-    # restart: always
+    restart: always
     volumes:
       - mediawiki:/tmp/mediawiki    # volume to backup
-      - ./backuper:/app/backuper.json   # backuper settings
+      # TODO uncomment and delete abckuper_text.json
+      # - ./backuper.json:/app/backuper.json   # backuper settings
+      - ./backuper_test.json:/app/backuper.json
 
 volumes:
   mediawiki:
