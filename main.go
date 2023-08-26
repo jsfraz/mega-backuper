@@ -16,7 +16,7 @@ func main() {
 	singleton := utils.GetSingleton()
 	// log settings
 	log.SetPrefix("mega-backuper: ")
-	log.SetFlags(log.LstdFlags | log.LUTC)
+	log.SetFlags(log.LstdFlags | log.LUTC | log.Lmicroseconds)
 
 	log.Println("Started.")
 

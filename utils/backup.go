@@ -8,8 +8,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
+
+	"github.com/t3rm1n4l/go-mega"
 )
 
 // Create tarball and return path to it.
@@ -21,6 +22,7 @@ import (
 func createTarball(backup models.Backup, now time.Time) (string, string, error) {
 	// create tarball file
 	folderPath := "/tmp/" + backup.Name
+	// file name: NAME_RFC3339.tar.gz
 	tarballFileName := backup.Name + "_" + now.Format(time.RFC3339) + ".tar.gz"
 	tarballPath := "/tmp/" + tarballFileName
 	tarballFile, err := os.Create(tarballPath)
@@ -82,45 +84,34 @@ func createTarball(backup models.Backup, now time.Time) (string, string, error) 
 	}
 }
 
-// Get /each/path/element/ from path string.
-//
-//	@param path
-//	@return []string
-func extractPaths(path string) []string {
-	substrings := strings.Split(path, "/")
-	// remove empty strings from the resulting slice
-	var result []string
-	for _, s := range substrings {
-		if s != "" {
-			result = append(result, s)
-		}
-	}
-	return result
-}
-
 // Uploads file to Mega and deletes it locally.
 //
 //	@param localFilePath
 //	@param fileName
 //	@param megaDir
+//	@return *mega.Node Node where file was uploaded.
 //	@return error
-func uploadToMegaAndDelete(localFilePath string, fileName string, megaDir string) error {
+func uploadToMegaAndDelete(localFilePath string, fileName string, megaDir string) (*mega.Node, error) {
 	// check mega dir and return node to upload to
 	uploadNode, err := MegaCheckDir(megaDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// upload
 	err = MegaUpload(localFilePath, uploadNode, fileName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// delete file
 	removeErr := os.Remove(localFilePath)
 	if removeErr != nil {
 		log.Println("Error deleting "+localFilePath+": ", removeErr)
 	}
-	return err
+	if err != nil {
+		return nil, err
+	} else {
+		return uploadNode, nil
+	}
 }
 
 // Backup volume to Mega.
@@ -135,7 +126,13 @@ func BackupVolume(backup models.Backup) error {
 		return err
 	}
 	// upload to mega
-	err = uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
+	uploadNode, err := uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
+	// delete oldest file(s)
+	if backup.LastCopies != 0 {
+		deleteErr := MegaDeleteFilesByLastCopyCount(backup, uploadNode)
+		if deleteErr != nil {
+			log.Println("Error deleting oldest file(s) in "+uploadNode.GetName()+" failed: ", deleteErr)
+		}
+	}
 	return err
-	// TODO delete oldest file(s)
 }
