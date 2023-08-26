@@ -8,20 +8,24 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 // Create tarball and return path to it.
 //
 //	@param backup
 //	@return string Path to tarball.
+//	@return string Tarball file name.
 //	@return error
-func CreateTarball(backup models.Backup) (string, error) {
+func createTarball(backup models.Backup, now time.Time) (string, string, error) {
 	// create tarball file
 	folderPath := "/tmp/" + backup.Name
-	tarballPath := "/tmp/" + backup.Name + ".tar.gz"
+	tarballFileName := backup.Name + "_" + now.Format(time.RFC3339) + ".tar.gz"
+	tarballPath := "/tmp/" + tarballFileName
 	tarballFile, err := os.Create(tarballPath)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer tarballFile.Close()
 	// create a GZIP writer to compress the tarball
@@ -72,22 +76,66 @@ func CreateTarball(backup models.Backup) (string, error) {
 
 	// return result
 	if err != nil {
-		return "", err
+		return "", "", err
 	} else {
-		return tarballPath, nil
+		return tarballPath, tarballFileName, nil
 	}
 }
 
-// Backup volume.
+// Get /each/path/element/ from path string.
+//
+//	@param path
+//	@return []string
+func extractPaths(path string) []string {
+	substrings := strings.Split(path, "/")
+	// remove empty strings from the resulting slice
+	var result []string
+	for _, s := range substrings {
+		if s != "" {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+// Uploads file to Mega and deletes it locally.
+//
+//	@param localFilePath
+//	@param fileName
+//	@param megaDir
+//	@return error
+func uploadToMegaAndDelete(localFilePath string, fileName string, megaDir string) error {
+	// check mega dir and return node to upload to
+	uploadNode, err := MegaCheckDir(megaDir)
+	if err != nil {
+		return err
+	}
+	// upload
+	err = MegaUpload(localFilePath, uploadNode, fileName)
+	if err != nil {
+		return err
+	}
+	// delete file
+	removeErr := os.Remove(localFilePath)
+	if removeErr != nil {
+		log.Println("Error deleting "+localFilePath+": ", removeErr)
+	}
+	return err
+}
+
+// Backup volume to Mega.
 //
 //	@param backup
-func BackupVolume(backup models.Backup) {
-	log.Println("Backing up [" + string(backup.Type) + "] backup job '" + backup.Name + "'...")
+//	@return error
+func BackupVolume(backup models.Backup) error {
+	now := time.Now()
 	// make tarball
-	tarballPath, err := CreateTarball(backup)
+	tarballPath, tarballFileName, err := createTarball(backup, now)
 	if err != nil {
-		log.Println("Failed to backup ["+string(backup.Type)+"] backup job '"+backup.Name+"': ", err)
+		return err
 	}
-	// TODO upload to Mega
-	log.Println(tarballPath)
+	// upload to mega
+	err = uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
+	return err
+	// TODO delete oldest file(s)
 }

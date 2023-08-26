@@ -18,9 +18,7 @@ func CheckVolumes() {
 			log.Println("Checking for directory " + tmp + backup.Name + "...")
 			// check if dir exists
 			if _, err := os.Stat(tmp + backup.Name); os.IsNotExist(err) {
-				log.Fatal("Directory does not exists.")
-			} else {
-				log.Println("Directory exists.")
+				log.Fatal("Directory " + tmp + " does not exists.")
 			}
 		}
 	}

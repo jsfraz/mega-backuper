@@ -16,7 +16,7 @@ func main() {
 	singleton := utils.GetSingleton()
 	// log settings
 	log.SetPrefix("mega-backuper: ")
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetFlags(log.LstdFlags | log.LUTC)
 
 	log.Println("Started.")
 
@@ -31,13 +31,13 @@ func main() {
 	singleton.Mega = mega.New()
 
 	// login or exit
-	utils.Login()
+	utils.MegaLogin()
 
 	// check volumes
 	utils.CheckVolumes()
 
 	// task scheduler
-	scheduler := gocron.NewScheduler(time.Local)
+	scheduler := gocron.NewScheduler(time.UTC)
 	// iterate trough backups
 	log.Println("Initializing jobs...")
 	for _, b := range settings.Backups {
@@ -46,14 +46,17 @@ func main() {
 		// volume backup
 		if backup.Type == models.Volume {
 			backupFunc = func() {
-				utils.BackupVolume(backup)
+				handleBackup(backup, utils.BackupVolume)
 			}
 		}
 		// mysql dump backup
 		if backup.Type == models.Mysql {
 			backupFunc = func() {
 				// TODO mysql dump backup
-				log.Println("TODO mysql dump backup")
+				handleBackup(backup, func(backup models.Backup) error {
+					log.Println("TODO mysql dump backup")
+					return nil
+				})
 			}
 		}
 		scheduler.Cron(backup.Cron).Do(backupFunc)
@@ -67,5 +70,19 @@ func main() {
 	} else {
 		// exit
 		log.Fatalln("No backup job was set.")
+	}
+}
+
+// Wrapper function for actual backup function. Logs backing up/succes/fail.
+//
+//	@param backup
+//	@param backupFunc
+func handleBackup(backup models.Backup, backupFunc func(backup models.Backup) error) {
+	log.Println("Backing up [" + string(backup.Type) + "] backup job '" + backup.Name + "'...")
+	err := backupFunc(backup)
+	if err != nil {
+		log.Println("Failed to backup ["+string(backup.Type)+"] backup job '"+backup.Name+"': ", err)
+	} else {
+		log.Println("Successfully backed up [" + string(backup.Type) + "] backup job '" + backup.Name + "'.")
 	}
 }
