@@ -129,10 +129,15 @@ func BackupVolume(backup models.Backup) error {
 	uploadNode, err := uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
 	// delete oldest file(s)
 	if backup.LastCopies != 0 {
-		deleteErr := MegaDeleteFilesByLastCopyCount(backup, uploadNode)
-		if deleteErr != nil {
-			log.Println("Error deleting oldest file(s) in "+uploadNode.GetName()+" failed: ", deleteErr)
-		}
+		// FIXME every time after first backup, it throws error 'Object (typically, node or user) not found'
+		// every cron iteration the error count increases
+		_ = MegaDeleteFilesByLastCopyCount(backup, uploadNode)
+		/*
+			deleteErr := MegaDeleteFilesByLastCopyCount(backup, uploadNode)
+			if deleteErr != nil {
+				log.Println("Error deleting oldest file(s) in '"+uploadNode.GetName()+"': ", deleteErr)
+			}
+		*/
 	}
 	return err
 }
