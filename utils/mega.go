@@ -1,11 +1,7 @@
 package utils
 
 import (
-	"errors"
-	"jsfraz/mega-backuper/models"
 	"log"
-	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/t3rm1n4l/go-mega"
@@ -25,7 +21,7 @@ func MegaLogin() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Logged as " + user.Name + ".")
+	log.Printf("Logged as %s", user.Name)
 }
 
 // Get /each/path/element/ from path string.
@@ -92,6 +88,7 @@ func MegaUpload(localFilePath string, node *mega.Node, fileName string) error {
 	return err
 }
 
+/*
 // Uploads file to Mega and keeps last n versions. Others are deleted.
 //
 //	@param backup
@@ -117,14 +114,14 @@ func MegaDeleteFilesByLastCopyCount(backup models.Backup, node *mega.Node) error
 	}
 	var deleteErrs []error
 	// delete oldest file(s)
-	if len(fileNodes) > backup.LastCopies {
+	if len(fileNodes) > *backup.LastCopies {
 		// sort by newest
 		sort.Slice(fileNodes, func(i, j int) bool {
 			return fileNodes[i].GetTimeStamp().After(fileNodes[j].GetTimeStamp())
 		})
 		// delete
-		for _, file := range fileNodes[backup.LastCopies:] {
-			deleteErr := m.Delete(file, backup.DestroyOldCopies)
+		for _, file := range fileNodes[*backup.LastCopies:] {
+			deleteErr := m.Delete(file, *backup.DestroyOldCopies)
 			if deleteErr != nil {
 				deleteErrs = append(deleteErrs, deleteErr)
 			}
@@ -137,3 +134,4 @@ func MegaDeleteFilesByLastCopyCount(backup models.Backup, node *mega.Node) error
 		return nil
 	}
 }
+*/

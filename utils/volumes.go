@@ -1,11 +1,7 @@
 package utils
 
-import (
-	"jsfraz/mega-backuper/models"
-	"log"
-	"os"
-)
-
+// TODOvolumes
+/*
 // Check if volume directories exists or exit program on fail.
 func CheckVolumes() {
 	// singleton
@@ -15,11 +11,12 @@ func CheckVolumes() {
 	for _, backup := range s.Settings.Backups {
 		if backup.Type == models.Volume {
 			tmp := "/tmp/"
-			log.Println("Checking for directory " + tmp + backup.Name + "...")
+			log.Printf("Checking for directory %s%s...", tmp, backup.Name)
 			// check if dir exists
-			if _, err := os.Stat(tmp + backup.Name); os.IsNotExist(err) {
-				log.Fatal("Directory " + tmp + " does not exists.")
+			if _, err := os.Stat(fmt.Sprintf("%s%s", tmp, backup.Name)); os.IsNotExist(err) {
+				log.Fatalf("Directory %s%s does not exists.", tmp, backup.Name)
 			}
 		}
 	}
 }
+*/

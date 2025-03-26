@@ -15,8 +15,7 @@ import (
 func LoadSettings() models.BackupSettings {
 	log.Println("Loading settings..")
 	// read json from file
-	// TODO change to backuper.json
-	data, err := os.ReadFile("backuper_test.json")
+	data, err := os.ReadFile("backuper.json")
 	if err != nil {
 		log.Fatal(err)
 	}
