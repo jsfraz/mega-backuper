@@ -1,7 +1,7 @@
 package models
 
 type Backup struct {
-	Name    string `json:"name" validate:"alphanum,required"`
+	Name    string `json:"name" validate:"required"`
 	MegaDir string `json:"megaDir" validate:"dirpath,required"`
 	// LastCopies       *int       `json:"lastCopies"`
 	// DestroyOldCopies *bool      `json:"destroyOldCopies"`
