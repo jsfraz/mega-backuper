@@ -6,7 +6,7 @@ Container for backing up other container's volumes and database dumps to Mega.nz
 
 DISCLAIMER: If Mega.nz API returns error 402, login in browser from the same IP address before running the container. (<https://github.com/rclone/rclone/issues/8270#issuecomment-2562047717>)
 
-This example config backups PostgreSQL database from `postgres-example` container every day at 12:00.
+This example config backups PostgreSQL database from `postgres-example` container every day at 12:00. It keeps last 10 copies in the output directory, older copies are moved to the rubbish bin.
 
 ### Example `backuper.json`
 
@@ -18,6 +18,7 @@ This example config backups PostgreSQL database from `postgres-example` containe
         {
             "name": "postgres",
             "megaDir": "postgres/",
+            "lastCopies": 10,
             "cron": "0 12 * * *",
             "type": "postgres",
             "pgUser": "postgres",
@@ -67,18 +68,23 @@ volumes:
 |----------|---------------------|----------------------------|----------|
 | email    | string              | Your Mega.nz e-mail        | true     |
 | password | string              | Your Mega.nz password      | true     |
-| backups  | backup object array | Individual backup settings | false    |
+| backups  | backup object array | Individual backup settings | true     |
 
 ### Backup object properties
 
-| Property | Type   | Description                           | Required |
-|----------|--------|---------------------------------------|----------|
-| name     | string | Backup name                           | true     |
-| megaDir  | string | Remote Mega.nz destination directory  | true     |
-| cron     | string | Cron expression for scheduling backup | true     |
-| type     | string | Backup type (postgres)                | true     |
+| Property         | Type   | Description                                           | Required |
+|------------------|--------|-------------------------------------------------------|----------|
+| name             | string | Backup name                                           | true     |
+| megaDir          | string | Remote Mega.nz destination directory                  | true     |
+| lastCopies       | int    | Number of last copies to keep                         | false    |
+<!-- FIXME https://github.com/t3rm1n4l/go-mega/pull/46 -->
+<!-- | destroyOldCopies | bool   | Destroy old copies instead moving them to rubbish bin | false    | -->
+| cron             | string | Cron expression for scheduling backup                 | true     |
+| type             | string | Backup type (postgres)                                | true     |
 
 #### PostgreSQL backup properties
+
+**DISCLAIMER: This project uses [`go-pgdump`](https://github.com/JCoupalK/go-pgdump) to dump PostgreSQL database. It doesn't feature all of `pg_dump` features and only supports dumping table contents, not triggers, views, functions, etc.**
 
 | Property   | Type   | Description                                                                              | Required |
 |------------|--------|------------------------------------------------------------------------------------------|----------|

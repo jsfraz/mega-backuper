@@ -1,3 +1,4 @@
+# debug config
 name: mega-backuper-example
 
 services:
@@ -11,15 +12,14 @@ services:
       - POSTGRES_DB=postgres
     volumes:
       - postgres:/var/lib/postgresql/data
-    restart: always
+    restart: unless-stopped
 
   mega-backuper:
-    image: ghcr.io/jsfraz/mega-backuper:latest
+    build:
+      context: .
     container_name: mega-backuper
-    restart: always
+    restart: unless-stopped
     volumes:
-      # TODO actually replace with actual config file
-      # - ./backuper.json:/app/backuper.json   # backuper settings
       - ./backuper_test.json:/app/backuper.json
 
 volumes:
