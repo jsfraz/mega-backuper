@@ -6,7 +6,7 @@ Container for backing up other container's volumes and database dumps to Mega.nz
 
 DISCLAIMER: If Mega.nz API returns error 402, login in browser from the same IP address before running the container. (<https://github.com/meganz/sdk/issues/1433>)
 
-This example config backups PostgreSQL database from `postgres-mega-backuper` container every day at 12:00.
+This example config backups PostgreSQL database from `postgres-example` container every day at 12:00.
 
 ### Example `backuper.json`
 
@@ -80,10 +80,10 @@ volumes:
 
 #### PostgreSQL backup properties
 
-| Property   | Type   | Description                           | Required |
-|------------|--------|---------------------------------------|----------|
-| pgUser     | string | PostgreSQL username                   | true     |
-| pgPassword | string | PostgreSQL password                   | true     |
-| pgDb       | string | PostgreSQL database name              | true     |
-| pgHost     | string | PostgreSQL host                       | true     |
-| pgPort     | int    | PostgreSQL port                       | true     |
+| Property   | Type   | Description                                                                              | Required |
+|------------|--------|------------------------------------------------------------------------------------------|----------|
+| pgUser     | string | PostgreSQL username                                                                      | true     |
+| pgPassword | string | PostgreSQL password                                                                      | true     |
+| pgDb       | string | PostgreSQL database name                                                                 | true     |
+| pgHost     | string | PostgreSQL host (or container name if running in the same network)                       | true     |
+| pgPort     | int    | PostgreSQL port                                                                          | true     |
