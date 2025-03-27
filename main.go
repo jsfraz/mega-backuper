@@ -23,20 +23,21 @@ func main() {
 	// load settings or exit
 	settings := utils.LoadSettings()
 	// validate struct or exit
-	utils.ValidateSettings(settings)
+	err := utils.ValidateSettings(settings)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	// add settinsg to singleton
 	singleton.Settings = settings
+
+	// Check config
+	utils.CheckConfig()
 
 	// add mega instance to singleton
 	singleton.Mega = mega.New()
 
 	// login or exit
 	utils.MegaLogin()
-
-	// TODO ping Postgres
-	// Check volumes
-	// TODO volumes
-	// utils.CheckVolumes()
 
 	// task scheduler
 	scheduler := gocron.NewScheduler(time.UTC)
@@ -45,34 +46,35 @@ func main() {
 	for _, b := range settings.Backups {
 		backup := b // creating a new variable to capture the current value
 		var backupFunc func()
-		// TODO volumes
-		/*
-			// volume backup
-			if backup.Type == models.Volume {
-				backupFunc = func() {
-					bck := backup
-					handleBackup(bck, utils.BackupVolume)
-				}
+		switch backup.Type {
+
+		// Volume backup
+		case models.Volume:
+			backupFunc = func() {
+				bck := backup
+				handleBackup(bck, utils.BackupVolume)
 			}
-		*/
+			break
+
 		// Postgres dump backup
-		if backup.Type == models.Postgres {
+		case models.Postgres:
 			backupFunc = func() {
 				bck := backup
 				handleBackup(bck, utils.BackupPostgres)
 			}
+			break
+
+			// TODO MySQL dump backup
+			/*
+				case models.Mysql:
+					backupFunc = func() {
+						// TODO mysql dump backup
+						bck := backup
+						handleBackup(bck, utils.BackupMysql)
+					}
+					break
+			*/
 		}
-		// mysql dump backup
-		// TODO mysql
-		/*
-			if backup.Type == models.Mysql {
-				backupFunc = func() {
-					// TODO mysql dump backup
-					bck := backup
-					handleBackup(bck, utils.BackupMysql)
-				}
-			}
-		*/
 		scheduler.Cron(backup.Cron).Do(backupFunc)
 		exprDesc, _ := cron.NewDescriptor()
 		desc, _ := exprDesc.ToDescription(backup.Cron, cron.Locale_en)

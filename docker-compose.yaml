@@ -14,6 +14,13 @@ services:
       - postgres:/var/lib/postgresql/data
     restart: unless-stopped
 
+  nginx-example:
+    image: nginx:alpine
+    container_name: nginx-example
+    volumes:
+      - nginx:/usr/share/nginx/html
+    restart: unless-stopped
+
   mega-backuper:
     build:
       context: .
@@ -21,6 +28,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./backuper_test.json:/app/backuper.json
+      - nginx:/tmp/nginx
 
 volumes:
   postgres:
+  nginx:
