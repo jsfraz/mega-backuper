@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"jsfraz/mega-backuper/models"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/t3rm1n4l/go-mega"
@@ -88,50 +90,33 @@ func MegaUpload(localFilePath string, node *mega.Node, fileName string) error {
 	return err
 }
 
-/*
-// Uploads file to Mega and keeps last n versions. Others are deleted.
+// Keeps last n versions. Others are deleted.
 //
 //	@param backup
 //	@param node Node to upload/delete files to/from.
 //	@return error
 func MegaDeleteFilesByLastCopyCount(backup models.Backup, node *mega.Node) error {
-	// get node children
-	m := GetSingleton().Mega
-	children, err := m.FS.GetChildren(node)
-	if err != nil {
-		return err
-	}
-	// filter all files matching name
-	var fileNodes []*mega.Node
-	// NAME_RFC3339.tar.gz
-	pattern := `^(` + backup.Name + `_)((?:(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2}(?:\.\d+)?))(Z|[\+-]\d{2}:\d{2})?)(.tar.gz)$`
-	for _, child := range children {
-		match, _ := regexp.MatchString(pattern, child.GetName())
-		// check if child is file (type == 0) and if name matches pattern
-		if child.GetType() == 0 && match {
-			fileNodes = append(fileNodes, child)
+	if backup.LastCopies != nil {
+		// get node children
+		m := GetSingleton().Mega
+		fileNodes, err := m.FS.GetChildren(node)
+		if err != nil {
+			return err
 		}
-	}
-	var deleteErrs []error
-	// delete oldest file(s)
-	if len(fileNodes) > *backup.LastCopies {
-		// sort by newest
-		sort.Slice(fileNodes, func(i, j int) bool {
-			return fileNodes[i].GetTimeStamp().After(fileNodes[j].GetTimeStamp())
-		})
-		// delete
-		for _, file := range fileNodes[*backup.LastCopies:] {
-			deleteErr := m.Delete(file, *backup.DestroyOldCopies)
-			if deleteErr != nil {
-				deleteErrs = append(deleteErrs, deleteErr)
+		// delete oldest file(s)
+		if len(fileNodes) > *backup.LastCopies {
+			// sort by newest
+			sort.Slice(fileNodes, func(i, j int) bool {
+				return fileNodes[i].GetTimeStamp().After(fileNodes[j].GetTimeStamp())
+			})
+			// delete
+			for _, file := range fileNodes[*backup.LastCopies:] {
+				// FIXME https://github.com/t3rm1n4l/go-mega/pull/46
+				// m.Delete(file, backup.DestroyOldCopies)
+				m.Delete(file, false)
 			}
 		}
 	}
-	// return error
-	if len(deleteErrs) != 0 {
-		return errors.Join(deleteErrs...)
-	} else {
-		return nil
-	}
+	// Don't return delete errors, the deleted files are still fetched from FS even when they don't exist
+	return nil
 }
-*/

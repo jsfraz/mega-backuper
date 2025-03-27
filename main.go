@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/lnquy/cron"
 	"github.com/t3rm1n4l/go-mega"
 )
 
@@ -32,6 +33,7 @@ func main() {
 	// login or exit
 	utils.MegaLogin()
 
+	// TODO ping Postgres
 	// Check volumes
 	// TODO volumes
 	// utils.CheckVolumes()
@@ -72,7 +74,9 @@ func main() {
 			}
 		*/
 		scheduler.Cron(backup.Cron).Do(backupFunc)
-		log.Printf("Added [%s] backup job '%s'", backup.Type, backup.Name)
+		exprDesc, _ := cron.NewDescriptor()
+		desc, _ := exprDesc.ToDescription(backup.Cron, cron.Locale_en)
+		log.Printf("Added [%s] backup job '%s': %s", backup.Type, backup.Name, desc)
 	}
 	// check if job list is empty or not
 	if len(scheduler.Jobs()) != 0 {
@@ -90,11 +94,11 @@ func main() {
 //	@param backup
 //	@param backupFunc
 func handleBackup(backup models.Backup, backupFunc func(backup models.Backup) error) {
-	log.Printf("Backing up [%s] backup job '%s'...", backup.Type, backup.Name)
+	log.Printf("Running [%s] backup job '%s'...", backup.Type, backup.Name)
 	err := backupFunc(backup)
 	if err != nil {
-		log.Printf("Failed to backup [%s] backup job '%s': %s", backup.Type, backup.Name, err)
+		log.Printf("Failed to run [%s] backup job '%s': %s", backup.Type, backup.Name, err)
 	} else {
-		log.Printf("Successfully backed up [%s] backup job '%s'", backup.Type, backup.Name)
+		log.Printf("Successfully ran up [%s] backup job '%s'", backup.Type, backup.Name)
 	}
 }

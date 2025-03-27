@@ -24,8 +24,8 @@ import (
 func createTarball(backup models.Backup, now time.Time) (string, string, error) {
 	// create tarball file
 	folderPath := fmt.Sprintf("/tmp/%s", backup.Name)
-	// file name: NAME_RFC3339.tar.gz
-	tarballFileName := fmt.Sprintf("%s_%s.tar.gz", backup.Name, now.Format(time.RFC3339))
+	// File name: NAME_UNIX_TIMESTAMP.tar.gz
+	tarballFileName := fmt.Sprintf("%s_%d.tar.gz", backup.Name, now.Unix())
 	tarballPath := fmt.Sprintf("/tmp/%s", tarballFileName)
 	tarballFile, err := os.Create(tarballPath)
 	if err != nil {
@@ -112,45 +112,16 @@ func uploadToMegaAndDelete(localFilePath string, fileName string, megaDir string
 	return uploadNode, nil
 }
 
-// Backup volume to Mega.
-//
-//	@param backup
-//	@return error
-func BackupVolume(backup models.Backup) error {
-	now := time.Now()
-	// make tarball
-	tarballPath, tarballFileName, err := createTarball(backup, now)
-	if err != nil {
-		return err
-	}
-	// upload to mega
-	_, err = uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
-	if err != nil {
-		return err
-	}
-	/*
-		// delete oldest file(s)
-		if backup.LastCopies != nil {
-			// FIXME every time after first backup, it throws error 'Object (typically, node or user) not found'
-			// every cron iteration the error count increases
-			err = MegaDeleteFilesByLastCopyCount(backup, uploadNode)
-			if err != nil {
-				return err
-			}
-		}
-	*/
-	return nil
-}
-
 // Backup Postgres.
 //
 //	@param backup
 //	@return error
 func BackupPostgres(backup models.Backup) error {
+	currentTime := time.Now()
 	// Init dumper
 	dumper := pgdump.NewDumper(fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		backup.PgHost, backup.PgPort, backup.PgUser, backup.PgPassword, backup.PgDb), 50)
-	currentTime := time.Now()
+	// File name: DB_NAME_UNIX_TIMESTAMP.sql
 	dumpFilename := fmt.Sprintf("/tmp/%s-%d.sql", backup.PgDb, currentTime.Unix())
 
 	// Dump database
@@ -164,21 +135,39 @@ func BackupPostgres(backup models.Backup) error {
 	}
 
 	// Upload to mega
-	_, err = uploadToMegaAndDelete(dumpFilename, strings.Split(dumpFilename, "/tmp/")[1], backup.MegaDir)
+	uploadNode, err := uploadToMegaAndDelete(dumpFilename, strings.Split(dumpFilename, "/tmp/")[1], backup.MegaDir)
 	if err != nil {
 		return err
 	}
-	/*
-		// Delete oldest file(s)
-		if backup.LastCopies != nil {
-			// FIXME every time after first backup, it throws error 'Object (typically, node or user) not found'
-			// Every cron iteration the error count increases
-			err = MegaDeleteFilesByLastCopyCount(backup, uploadNode)
-			if err != nil {
-				return err
-			}
-		}
-	*/
+	// Delete oldest file(s)
+	err = MegaDeleteFilesByLastCopyCount(backup, uploadNode)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Backup volume to Mega.
+//
+//	@param backup
+//	@return error
+func BackupVolume(backup models.Backup) error {
+	currentTime := time.Now()
+	// make tarball
+	tarballPath, tarballFileName, err := createTarball(backup, currentTime)
+	if err != nil {
+		return err
+	}
+	// upload to mega
+	uploadNode, err := uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
+	if err != nil {
+		return err
+	}
+	// delete oldest file(s)
+	err = MegaDeleteFilesByLastCopyCount(backup, uploadNode)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
