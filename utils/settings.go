@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"jsfraz/mega-backuper/models"
+	"jsfraz/mega-backuper/validators"
 	"log"
 	"os"
 
@@ -29,24 +30,26 @@ func LoadSettings() models.BackupSettings {
 	return settings
 }
 
-// TODO validate unique names and volume subdirs
 // Validates struct. Exits wit hstatus 1 on error.
 //
 //	@param settings
-func ValidateSettings(settings models.BackupSettings) {
+//	@return error
+func ValidateSettings(settings models.BackupSettings) error {
 	log.Println("Validating settings..")
 	validator := validator.New()
+	validators.RegisterBackupSettingsValidators(validator)
 	// validate BackupSettings struct
 	err := validator.Struct(settings)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	// validate Backup struct
 	for _, element := range settings.Backups {
 		err = validator.Struct(element)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 	log.Println("Settings OK.")
+	return nil
 }

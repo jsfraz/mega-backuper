@@ -8,6 +8,8 @@ DISCLAIMER: If Mega.nz API returns error 402, login in browser from the same IP 
 
 This example config backups PostgreSQL database from `postgres-example` container every day at 12:00. It keeps last 10 copies in the output directory, older copies are moved to the rubbish bin.
 
+The `nginx` backup will backup the `nginx-example` container's html directory every day at 10:00.
+
 ### Example `backuper.json`
 
 ```json
@@ -26,12 +28,19 @@ This example config backups PostgreSQL database from `postgres-example` containe
             "pgDb": "postgres",
             "pgHost": "postgres-example",
             "pgPort": 5432
+        },
+        {
+            "name": "nginx",
+            "megaDir": "nginx/",
+            "lastCopies": 5,
+            "cron": "0 10 * * *",
+            "type": "volume"
         }
     ]
 }
 ```
 
-### Example `docker-compose.yaml`
+#### Example `docker-compose.yaml`
 
 ```yaml
 name: mega-backuper-example
@@ -49,12 +58,20 @@ services:
       - postgres:/var/lib/postgresql/data
     restart: always
 
+  nginx-example:
+    image: nginx:alpine
+    container_name: nginx-example
+    volumes:
+      - nginx:/usr/share/nginx/html
+    restart: always
+
   mega-backuper:
     image: ghcr.io/jsfraz/mega-backuper:latest
     container_name: mega-backuper
     restart: always
     volumes:
       - ./backuper.json:/app/backuper.json
+      - nginx:/tmp/nginx
 
 volumes:
   postgres:
@@ -77,10 +94,11 @@ volumes:
 | name             | string | Backup name                                           | true     |
 | megaDir          | string | Remote Mega.nz destination directory                  | true     |
 | lastCopies       | int    | Number of last copies to keep                         | false    |
-<!-- FIXME https://github.com/t3rm1n4l/go-mega/pull/46 -->
-<!-- | destroyOldCopies | bool   | Destroy old copies instead moving them to rubbish bin | false    | -->
 | cron             | string | Cron expression for scheduling backup                 | true     |
 | type             | string | Backup type (postgres)                                | true     |
+
+<!-- FIXME https://github.com/t3rm1n4l/go-mega/pull/46 -->
+<!-- | destroyOldCopies | bool   | Destroy old copies instead moving them to rubbish bin | false    | -->
 
 #### PostgreSQL backup properties
 
@@ -93,3 +111,7 @@ volumes:
 | pgDb       | string | PostgreSQL database name                                                                 | true     |
 | pgHost     | string | PostgreSQL host (or container name if running in the same network)                       | true     |
 | pgPort     | int    | PostgreSQL port                                                                          | true     |
+
+#### Volume backup properties
+
+There are no additional properties for volume backups, however, the `name` property will be used as the directory name mounted to backuper container. Make sure your config looks like this example, where name of the job (`nginx`) is the same as the directory name mounted to backuper container (`/tmp/nginx`).

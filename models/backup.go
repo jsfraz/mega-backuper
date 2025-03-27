@@ -7,7 +7,7 @@ type Backup struct {
 	// FIXME https://github.com/t3rm1n4l/go-mega/pull/46
 	// DestroyOldCopies bool       `json:"destroyOldCopies" validate:"required_with=LastCopies"`
 	Cron string     `json:"cron" validate:"cron,required"`
-	Type BackupType `json:"type" validate:"oneof=volume postgres mysql,required"`
+	Type BackupType `json:"type" validate:"oneof=postgres volume,required"`
 
 	// Postgres
 	PgUser     string `json:"pgUser" validate:"required_if=Type postgres,omitempty,required"`
@@ -15,8 +15,6 @@ type Backup struct {
 	PgDb       string `json:"pgDb" validate:"required_if=Type postgres,omitempty,required"`
 	PgHost     string `json:"pgHost" validate:"required_if=Type postgres,omitempty,required"`
 	PgPort     int    `json:"pgPort" validate:"required_if=Type postgres,omitempty,required"`
-
-	// TODO volume
 
 	// TODO mysql
 	// Mysql

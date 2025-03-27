@@ -3,9 +3,11 @@ package utils
 import (
 	"archive/tar"
 	"compress/gzip"
+	"database/sql"
 	"fmt"
 	"io"
 	"jsfraz/mega-backuper/models"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,8 +20,9 @@ import (
 // Create tarball and return path to it.
 //
 //	@param backup
+//	@param now
 //	@return string Path to tarball.
-//	@return string Tarball file name.
+//	@return string Path to tarball.
 //	@return error
 func createTarball(backup models.Backup, now time.Time) (string, string, error) {
 	// create tarball file
@@ -178,4 +181,37 @@ func BackupVolume(backup models.Backup) error {
 func BackupMysql(backup models.Backup) error {
 	// TODO mysql dump backup
 	return nil
+}
+
+// Check if volume directories exists or exit program on fail.
+func CheckConfig() {
+	// singleton
+	s := GetSingleton()
+	log.Println("Checking settings...")
+
+	// cycle trough backups
+	for _, backup := range s.Settings.Backups {
+		switch backup.Type {
+
+		// Volume
+		case models.Volume:
+			tmp := "/tmp/"
+			// check if dir exists
+			if _, err := os.Stat(fmt.Sprintf("%s%s", tmp, backup.Name)); os.IsNotExist(err) {
+				log.Fatalf("Could not find directory for job '%s': %s%s", backup.Name, tmp, backup.Name)
+			}
+			break
+
+		// Postgres
+		case models.Postgres:
+			// ping
+			db, err := sql.Open("postgres", fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+				backup.PgHost, backup.PgPort, backup.PgUser, backup.PgPassword, backup.PgDb))
+			if err != nil {
+				log.Fatalf("Failed to ping PostgreSQL for job '%s': %v", backup.Name, err)
+			}
+			db.Close()
+			break
+		}
+	}
 }

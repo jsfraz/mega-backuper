@@ -4,6 +4,6 @@ type BackupType string
 
 const (
 	Postgres BackupType = "postgres"
-	// Volume   BackupType = "volume"
+	Volume   BackupType = "volume"
 	// Mysql    BackupType = "mysql"
 )
