@@ -4,7 +4,7 @@ Container for backing up other container's volumes and database dumps to Mega.nz
 
 ## Example usage
 
-DISCLAIMER: If Mega.nz API returns error 402, login in browser from the same IP address before running the container. (<https://github.com/meganz/sdk/issues/1433>)
+DISCLAIMER: If Mega.nz API returns error 402, login in browser from the same IP address before running the container. (<https://github.com/rclone/rclone/issues/8270#issuecomment-2562047717>)
 
 This example config backups PostgreSQL database from `postgres-example` container every day at 12:00.
 
