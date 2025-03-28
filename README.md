@@ -4,7 +4,7 @@ Container for backing up other container's volumes and database dumps to Mega.nz
 
 ## Example usage
 
-DISCLAIMER: If Mega.nz API returns error 402, login in browser from the same IP address before running the container. (<https://github.com/rclone/rclone/issues/8270#issuecomment-2562047717>)
+> If Mega.nz API returns error 402, login in browser from the same IP address before running the container. (<https://github.com/rclone/rclone/issues/8270#issuecomment-2562047717>)
 
 This example config backups PostgreSQL database from `postgres-example` container every day at 12:00. It keeps last 10 copies in the output directory, older copies are moved to the rubbish bin.
 
@@ -40,7 +40,7 @@ The `nginx` backup will backup the `nginx-example` container's html directory ev
 }
 ```
 
-#### Example `docker-compose.yaml`
+### Example `docker-compose.yaml`
 
 ```yaml
 name: mega-backuper-example
@@ -102,7 +102,7 @@ volumes:
 
 #### PostgreSQL backup properties
 
-**DISCLAIMER: This project uses [`go-pgdump`](https://github.com/JCoupalK/go-pgdump) to dump PostgreSQL database. It doesn't feature all of `pg_dump` features and only supports dumping table contents, not triggers, views, functions, etc.**
+> This project uses [`go-pgdump`](https://github.com/JCoupalK/go-pgdump) to dump PostgreSQL database. It doesn't feature all of `pg_dump` features and only supports dumping table contents, not triggers, views, functions, etc.
 
 | Property   | Type   | Description                                                                              | Required |
 |------------|--------|------------------------------------------------------------------------------------------|----------|
