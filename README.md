@@ -75,6 +75,7 @@ services:
 
 volumes:
   postgres:
+  nginx:
 ```
 
 ## Config file properties
