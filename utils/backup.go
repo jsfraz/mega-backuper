@@ -115,47 +115,6 @@ func uploadToMegaAndDelete(localFilePath string, fileName string, megaDir string
 	return uploadNode, nil
 }
 
-// Create tarball from a single file and return path to it.
-func createFileTarball(filePath string, tarballPath string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return err
-	}
-
-	tarballFile, err := os.Create(tarballPath)
-	if err != nil {
-		return err
-	}
-	defer tarballFile.Close()
-
-	gzipWriter := gzip.NewWriter(tarballFile)
-	defer gzipWriter.Close()
-
-	tarWriter := tar.NewWriter(gzipWriter)
-	defer tarWriter.Close()
-
-	header, err := tar.FileInfoHeader(fileInfo, fileInfo.Name())
-	if err != nil {
-		return err
-	}
-	header.Name = filepath.Base(filePath)
-
-	if err := tarWriter.WriteHeader(header); err != nil {
-		return err
-	}
-
-	if _, err := io.Copy(tarWriter, file); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 // Backup Postgres.
 //
@@ -163,30 +122,20 @@ func createFileTarball(filePath string, tarballPath string) error {
 //	@return error
 func BackupPostgres(backup models.Backup) error {
 	currentTime := time.Now()
-	// File name: DB_NAME_UNIX_TIMESTAMP.sql
-	dumpFilename := fmt.Sprintf("/tmp/%s-%d.sql", backup.PgDb, currentTime.Unix())
-	tarballFileName := fmt.Sprintf("%s-%d.sql.tar.gz", backup.PgDb, currentTime.Unix())
-	tarballPath := fmt.Sprintf("/tmp/%s", tarballFileName)
+	// File name: DB_NAME_UNIX_TIMESTAMP.backup
+	dumpFileName := fmt.Sprintf("%s-%d.backup", backup.PgDb, currentTime.Unix())
+	dumpFilePath := fmt.Sprintf("/tmp/%s", dumpFileName)
 
 	// Dump database using native pg_dump
-	cmd := exec.Command("pg_dump", "-h", backup.PgHost, "-p", fmt.Sprintf("%d", backup.PgPort), "-U", backup.PgUser, "-d", backup.PgDb, "-f", dumpFilename)
+	cmd := exec.Command("pg_dump", "-Fc", "-h", backup.PgHost, "-p", fmt.Sprintf("%d", backup.PgPort), "-U", backup.PgUser, "-d", backup.PgDb, "-f", dumpFilePath)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", backup.PgPassword))
 	
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("pg_dump failed: %w, output: %s", err, string(output))
 	}
 
-	// Create tarball
-	if err := createFileTarball(dumpFilename, tarballPath); err != nil {
-		os.Remove(dumpFilename)
-		return fmt.Errorf("failed to create tarball: %w", err)
-	}
-
-	// Delete original sql file
-	os.Remove(dumpFilename)
-
 	// Upload to mega
-	uploadNode, err := uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
+	uploadNode, err := uploadToMegaAndDelete(dumpFilePath, dumpFileName, backup.MegaDir)
 	if err != nil {
 		return err
 	}
