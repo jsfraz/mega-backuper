@@ -1,5 +1,5 @@
 # Use the official Golang image as the base image
-FROM golang:1.24.1-alpine AS build
+FROM golang:1.26.1-alpine AS build
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -18,6 +18,9 @@ RUN go build -o mega-backuper
 
 # Start a new stage using a minimal Alpine image
 FROM alpine:latest
+
+# Install postgresql-client for native pg_dump
+RUN apk add --no-cache postgresql-client
 
 # Set the working directory inside the container
 WORKDIR /app

@@ -9,11 +9,11 @@ import (
 	"jsfraz/mega-backuper/models"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/JCoupalK/go-pgdump"
+	_ "github.com/lib/pq"
 	"github.com/t3rm1n4l/go-mega"
 )
 
@@ -115,30 +115,78 @@ func uploadToMegaAndDelete(localFilePath string, fileName string, megaDir string
 	return uploadNode, nil
 }
 
+// Create tarball from a single file and return path to it.
+func createFileTarball(filePath string, tarballPath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	tarballFile, err := os.Create(tarballPath)
+	if err != nil {
+		return err
+	}
+	defer tarballFile.Close()
+
+	gzipWriter := gzip.NewWriter(tarballFile)
+	defer gzipWriter.Close()
+
+	tarWriter := tar.NewWriter(gzipWriter)
+	defer tarWriter.Close()
+
+	header, err := tar.FileInfoHeader(fileInfo, fileInfo.Name())
+	if err != nil {
+		return err
+	}
+	header.Name = filepath.Base(filePath)
+
+	if err := tarWriter.WriteHeader(header); err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(tarWriter, file); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Backup Postgres.
 //
 //	@param backup
 //	@return error
 func BackupPostgres(backup models.Backup) error {
 	currentTime := time.Now()
-	// Init dumper
-	dumper := pgdump.NewDumper(fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		backup.PgHost, backup.PgPort, backup.PgUser, backup.PgPassword, backup.PgDb), 50)
 	// File name: DB_NAME_UNIX_TIMESTAMP.sql
 	dumpFilename := fmt.Sprintf("/tmp/%s-%d.sql", backup.PgDb, currentTime.Unix())
+	tarballFileName := fmt.Sprintf("%s-%d.sql.tar.gz", backup.PgDb, currentTime.Unix())
+	tarballPath := fmt.Sprintf("/tmp/%s", tarballFileName)
 
-	// Dump database
-	err := dumper.DumpDatabase(dumpFilename, &pgdump.TableOptions{
-		TableSuffix: "",
-		TablePrefix: "",
-		Schema:      "",
-	})
-	if err != nil {
-		return err
+	// Dump database using native pg_dump
+	cmd := exec.Command("pg_dump", "-h", backup.PgHost, "-p", fmt.Sprintf("%d", backup.PgPort), "-U", backup.PgUser, "-d", backup.PgDb, "-f", dumpFilename)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", backup.PgPassword))
+	
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("pg_dump failed: %w, output: %s", err, string(output))
 	}
 
+	// Create tarball
+	if err := createFileTarball(dumpFilename, tarballPath); err != nil {
+		os.Remove(dumpFilename)
+		return fmt.Errorf("failed to create tarball: %w", err)
+	}
+
+	// Delete original sql file
+	os.Remove(dumpFilename)
+
 	// Upload to mega
-	uploadNode, err := uploadToMegaAndDelete(dumpFilename, strings.Split(dumpFilename, "/tmp/")[1], backup.MegaDir)
+	uploadNode, err := uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
 	if err != nil {
 		return err
 	}
@@ -200,7 +248,6 @@ func CheckConfig() {
 			if _, err := os.Stat(fmt.Sprintf("%s%s", tmp, backup.Name)); os.IsNotExist(err) {
 				log.Fatalf("Could not find directory for job '%s': %s%s", backup.Name, tmp, backup.Name)
 			}
-			break
 
 		// Postgres
 		case models.Postgres:
@@ -211,7 +258,6 @@ func CheckConfig() {
 				log.Fatalf("Failed to ping PostgreSQL for job '%s': %v", backup.Name, err)
 			}
 			db.Close()
-			break
 		}
 	}
 }

@@ -103,7 +103,7 @@ volumes:
 
 #### PostgreSQL backup properties
 
-> This project uses [`go-pgdump`](https://github.com/JCoupalK/go-pgdump) to dump PostgreSQL database. It doesn't feature all of `pg_dump` features and only supports dumping table contents, not triggers, views, functions, etc.
+> This project uses native `pg_dump` to dump PostgreSQL database, so it supports all of `pg_dump` features like triggers, views, functions, etc.
 
 | Property   | Type   | Description                                                                              | Required |
 |------------|--------|------------------------------------------------------------------------------------------|----------|
