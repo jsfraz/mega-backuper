@@ -9,11 +9,11 @@ import (
 	"jsfraz/mega-backuper/models"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/JCoupalK/go-pgdump"
+	_ "github.com/lib/pq"
 	"github.com/t3rm1n4l/go-mega"
 )
 
@@ -115,30 +115,27 @@ func uploadToMegaAndDelete(localFilePath string, fileName string, megaDir string
 	return uploadNode, nil
 }
 
+
 // Backup Postgres.
 //
 //	@param backup
 //	@return error
 func BackupPostgres(backup models.Backup) error {
 	currentTime := time.Now()
-	// Init dumper
-	dumper := pgdump.NewDumper(fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		backup.PgHost, backup.PgPort, backup.PgUser, backup.PgPassword, backup.PgDb), 50)
-	// File name: DB_NAME_UNIX_TIMESTAMP.sql
-	dumpFilename := fmt.Sprintf("/tmp/%s-%d.sql", backup.PgDb, currentTime.Unix())
+	// File name: DB_NAME_UNIX_TIMESTAMP.backup
+	dumpFileName := fmt.Sprintf("%s-%d.backup", backup.PgDb, currentTime.Unix())
+	dumpFilePath := fmt.Sprintf("/tmp/%s", dumpFileName)
 
-	// Dump database
-	err := dumper.DumpDatabase(dumpFilename, &pgdump.TableOptions{
-		TableSuffix: "",
-		TablePrefix: "",
-		Schema:      "",
-	})
-	if err != nil {
-		return err
+	// Dump database using native pg_dump
+	cmd := exec.Command("pg_dump", "-Fc", "-h", backup.PgHost, "-p", fmt.Sprintf("%d", backup.PgPort), "-U", backup.PgUser, "-d", backup.PgDb, "-f", dumpFilePath)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", backup.PgPassword))
+	
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("pg_dump failed: %w, output: %s", err, string(output))
 	}
 
 	// Upload to mega
-	uploadNode, err := uploadToMegaAndDelete(dumpFilename, strings.Split(dumpFilename, "/tmp/")[1], backup.MegaDir)
+	uploadNode, err := uploadToMegaAndDelete(dumpFilePath, dumpFileName, backup.MegaDir)
 	if err != nil {
 		return err
 	}
@@ -200,7 +197,6 @@ func CheckConfig() {
 			if _, err := os.Stat(fmt.Sprintf("%s%s", tmp, backup.Name)); os.IsNotExist(err) {
 				log.Fatalf("Could not find directory for job '%s': %s%s", backup.Name, tmp, backup.Name)
 			}
-			break
 
 		// Postgres
 		case models.Postgres:
@@ -211,7 +207,6 @@ func CheckConfig() {
 				log.Fatalf("Failed to ping PostgreSQL for job '%s': %v", backup.Name, err)
 			}
 			db.Close()
-			break
 		}
 	}
 }

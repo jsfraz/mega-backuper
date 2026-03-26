@@ -20,6 +20,18 @@ services:
     volumes:
       - nginx:/usr/share/nginx/html
     restart: unless-stopped
+  
+  timescaledb-example:
+    image: timescale/timescaledb:latest-pg17
+    container_name: timescaledb-example
+    environment:
+      - POSTGRES_DB=timescaledb
+      - POSTGRES_USER=timescaledb
+      - POSTGRES_PASSWORD=timescaledb
+      - PGDATA=/pgdata
+    volumes:
+      - timescaledb_data:/pgdata
+    restart: unless-stopped
 
   mega-backuper:
     build:
@@ -32,4 +44,5 @@ services:
 
 volumes:
   postgres:
+  timescaledb_data:
   nginx:
