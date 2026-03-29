@@ -6,7 +6,7 @@ Container for backing up other container's volumes and database dumps to Mega.nz
 
 > If Mega.nz API returns error 402, login in browser from the same IP address before running the container. (<https://github.com/rclone/rclone/issues/8270#issuecomment-2562047717>)
 
-This example config backups PostgreSQL database from `postgres-example` container every day at 12:00. It keeps last 10 copies in the output directory, older copies are moved to the rubbish bin.
+This example config backups PostgreSQL database from `postgres-example` container every day at 12:00, and MariaDB database from `mariadb-example` every day at 14:00. It keeps last 10 copies in the output directory, older copies are moved to the rubbish bin.
 
 The `nginx` backup will backup the `nginx-example` container's html directory every day at 10:00.
 
@@ -35,6 +35,18 @@ The `nginx` backup will backup the `nginx-example` container's html directory ev
             "lastCopies": 5,
             "cron": "0 10 * * *",
             "type": "volume"
+        },
+        {
+            "name": "mariadb",
+            "megaDir": "mariadb/",
+            "lastCopies": 10,
+            "cron": "0 14 * * *",
+            "type": "mysql",
+            "mysqlUser": "mariadb",
+            "mysqlPassword": "mariadb",
+            "mysqlDb": "mariadb",
+            "mysqlHost": "mariadb-example",
+            "mysqlPort": 3306
         }
     ]
 }
@@ -42,41 +54,17 @@ The `nginx` backup will backup the `nginx-example` container's html directory ev
 
 ### Example `docker-compose.yaml`
 
-```yaml
-name: mega-backuper-example
+<https://github.com/jsfraz/mega-backuper/blob/master/docker-compose.yaml>
 
-services:
+## Export formats
 
-  postgres-example:
-    image: postgres:alpine
-    container_name: postgres-example
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgres
-    volumes:
-      - postgres:/var/lib/postgresql/data
-    restart: always
+The output files are named using the following pattern: `NAME-UNIX_TIMESTAMP.EXTENSION`.
 
-  nginx-example:
-    image: nginx:alpine
-    container_name: nginx-example
-    volumes:
-      - nginx:/usr/share/nginx/html
-    restart: always
-
-  mega-backuper:
-    image: ghcr.io/jsfraz/mega-backuper:latest
-    container_name: mega-backuper
-    restart: always
-    volumes:
-      - ./backuper.json:/app/backuper.json
-      - nginx:/tmp/nginx
-
-volumes:
-  postgres:
-  nginx:
-```
+| Backup Type | Extension | Internal Format                                                         |
+|-------------|-----------|-------------------------------------------------------------------------|
+| `postgres`  | `.backup` | Custom PostgreSQL binary format (`pg_dump -Fc`). Compressed internally. |
+| `mysql`     | `.tar.gz` | Gunzipped tarball containing `.sql` dump.                               |
+| `volume`    | `.tar.gz` | Gunzipped tarball containing volume contents.                           |
 
 ## Config file properties
 
@@ -96,7 +84,7 @@ volumes:
 | megaDir          | string | Remote Mega.nz destination directory                  | true     |
 | lastCopies       | int    | Number of last copies to keep                         | false    |
 | cron             | string | Cron expression for scheduling backup                 | true     |
-| type             | string | Backup type (postgres)                                | true     |
+| type             | string | Backup type (postgres, mysql, volume)                 | true     |
 
 <!-- FIXME https://github.com/t3rm1n4l/go-mega/pull/46 -->
 <!-- | destroyOldCopies | bool   | Destroy old copies instead moving them to rubbish bin | false    | -->
@@ -112,6 +100,18 @@ volumes:
 | pgDb       | string | PostgreSQL database name                                                                 | true     |
 | pgHost     | string | PostgreSQL host (or container name if running in the same network)                       | true     |
 | pgPort     | int    | PostgreSQL port                                                                          | true     |
+
+#### MySQL/MariaDB backup properties
+
+> This project uses native `mysqldump` to dump MySQL/MariaDB database.
+
+| Property      | Type   | Description                                                        | Required |
+|---------------|--------|--------------------------------------------------------------------|----------|
+| mysqlUser     | string | MySQL username                                                     | true     |
+| mysqlPassword | string | MySQL password                                                     | true     |
+| mysqlDb       | string | MySQL database name                                                | true     |
+| mysqlHost     | string | MySQL host (or container name if running in the same network)      | true     |
+| mysqlPort     | int    | MySQL port                                                         | true     |
 
 #### Volume backup properties
 

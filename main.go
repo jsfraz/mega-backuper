@@ -45,37 +45,28 @@ func main() {
 	log.Println("Initializing jobs...")
 	for _, b := range settings.Backups {
 		backup := b // creating a new variable to capture the current value
-		var backupFunc func()
+		var action func(models.Backup) error
 		switch backup.Type {
 
 		// Volume backup
 		case models.Volume:
-			backupFunc = func() {
-				bck := backup
-				handleBackup(bck, utils.BackupVolume)
-			}
-			break
+			action = utils.BackupVolume
 
 		// Postgres dump backup
 		case models.Postgres:
-			backupFunc = func() {
-				bck := backup
-				handleBackup(bck, utils.BackupPostgres)
-			}
-			break
+			action = utils.BackupPostgres
 
-			// TODO MySQL dump backup
-			/*
-				case models.Mysql:
-					backupFunc = func() {
-						// TODO mysql dump backup
-						bck := backup
-						handleBackup(bck, utils.BackupMysql)
-					}
-					break
-			*/
+		// MySQL dump backup
+		case models.Mysql:
+			action = utils.BackupMysql
+
+		default:
+			log.Printf("Unknown backup type: %s", backup.Type)
+			continue
 		}
-		scheduler.Cron(backup.Cron).Do(backupFunc)
+
+		bck := backup
+		scheduler.Cron(backup.Cron).Do(handleBackup, bck, action)
 		exprDesc, _ := cron.NewDescriptor()
 		desc, _ := exprDesc.ToDescription(backup.Cron, cron.Locale_en)
 		log.Printf("Added [%s] backup job '%s': %s", backup.Type, backup.Name, desc)

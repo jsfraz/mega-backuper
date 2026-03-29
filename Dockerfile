@@ -19,8 +19,8 @@ RUN go build -o mega-backuper
 # Start a new stage using a minimal Alpine image
 FROM alpine:latest
 
-# Install postgresql-client for native pg_dump
-RUN apk add --no-cache postgresql-client
+# Install postgresql-client and mariadb-client for native dumps
+RUN apk add --no-cache postgresql-client mariadb-client
 
 # Set the working directory inside the container
 WORKDIR /app
