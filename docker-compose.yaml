@@ -3,6 +3,13 @@ name: mega-backuper-example
 
 services:
 
+  nginx-example:
+    image: nginx:alpine
+    container_name: nginx-example
+    volumes:
+      - nginx:/usr/share/nginx/html
+    # restart: always
+
   postgres-example:
     image: postgres:alpine
     container_name: postgres-example
@@ -12,14 +19,7 @@ services:
       - POSTGRES_DB=postgres
     volumes:
       - postgres:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  nginx-example:
-    image: nginx:alpine
-    container_name: nginx-example
-    volumes:
-      - nginx:/usr/share/nginx/html
-    restart: unless-stopped
+    # restart: always
   
   timescaledb-example:
     image: timescale/timescaledb:latest-pg17
@@ -31,18 +31,32 @@ services:
       - PGDATA=/pgdata
     volumes:
       - timescaledb_data:/pgdata
-    restart: unless-stopped
+    # restart: always
+  
+  mariadb-example:
+    image: mariadb
+    container_name: mariadb-example
+    restart: always
+    environment:
+      - MARIADB_ROOT_PASSWORD=mariadb
+      - MARIADB_DATABASE=mariadb
+      - MARIADB_USER=mariadb
+      - MARIADB_PASSWORD=mariadb
+    volumes:
+      - mariadb:/var/lib/mysql
+    # restart: always
 
   mega-backuper:
     build:
       context: .
     container_name: mega-backuper
-    restart: unless-stopped
     volumes:
       - ./backuper_test.json:/app/backuper.json
       - nginx:/tmp/nginx
+    # restart: always
 
 volumes:
+  nginx:
   postgres:
   timescaledb_data:
-  nginx:
+  mariadb:

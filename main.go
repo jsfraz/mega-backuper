@@ -56,11 +56,10 @@ func main() {
 		case models.Postgres:
 			action = utils.BackupPostgres
 
-		// TODO MySQL dump backup
-		/*
-			case models.Mysql:
-				action = utils.BackupMysql
-		*/
+		// MySQL dump backup
+		case models.Mysql:
+			action = utils.BackupMysql
+
 		default:
 			log.Printf("Unknown backup type: %s", backup.Type)
 			continue

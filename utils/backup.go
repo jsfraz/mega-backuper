@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"github.com/t3rm1n4l/go-mega"
 )
@@ -24,15 +25,16 @@ import (
 //	@return string Path to tarball.
 //	@return string Path to tarball.
 //	@return error
-func createTarball(backup models.Backup, now time.Time) (string, string, error) {
+// Create tarball from source path to target path.
+//
+//	@param sourcePath
+//	@param targetPath
+//	@return error
+func createTarball(sourcePath string, targetPath string) error {
 	// create tarball file
-	folderPath := fmt.Sprintf("/tmp/%s", backup.Name)
-	// File name: NAME_UNIX_TIMESTAMP.tar.gz
-	tarballFileName := fmt.Sprintf("%s_%d.tar.gz", backup.Name, now.Unix())
-	tarballPath := fmt.Sprintf("/tmp/%s", tarballFileName)
-	tarballFile, err := os.Create(tarballPath)
+	tarballFile, err := os.Create(targetPath)
 	if err != nil {
-		return "", "", err
+		return err
 	}
 	defer tarballFile.Close()
 	// create a GZIP writer to compress the tarball
@@ -44,7 +46,7 @@ func createTarball(backup models.Backup, now time.Time) (string, string, error) 
 	defer tarWriter.Close()
 
 	// walk through the source folder and add its contents to the tarball
-	err = filepath.Walk(folderPath, func(filePath string, fileInfo os.FileInfo, err error) error {
+	err = filepath.Walk(sourcePath, func(filePath string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -56,7 +58,7 @@ func createTarball(backup models.Backup, now time.Time) (string, string, error) 
 		}
 
 		// calculate the relative path of the file within the source folder
-		relPath, _ := filepath.Rel(folderPath, filePath)
+		relPath, _ := filepath.Rel(sourcePath, filePath)
 		header.Name = relPath
 
 		// write the header to the TAR archive
@@ -81,12 +83,7 @@ func createTarball(backup models.Backup, now time.Time) (string, string, error) 
 		return nil
 	})
 
-	// return result
-	if err != nil {
-		return "", "", err
-	} else {
-		return tarballPath, tarballFileName, nil
-	}
+	return err
 }
 
 // Uploads file to Mega and deletes it locally.
@@ -115,7 +112,6 @@ func uploadToMegaAndDelete(localFilePath string, fileName string, megaDir string
 	return uploadNode, nil
 }
 
-
 // Backup Postgres.
 //
 //	@param backup
@@ -129,7 +125,7 @@ func BackupPostgres(backup models.Backup) error {
 	// Dump database using native pg_dump
 	cmd := exec.Command("pg_dump", "-Fc", "-h", backup.PgHost, "-p", fmt.Sprintf("%d", backup.PgPort), "-U", backup.PgUser, "-d", backup.PgDb, "-f", dumpFilePath)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", backup.PgPassword))
-	
+
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("pg_dump failed: %w, output: %s", err, string(output))
 	}
@@ -153,8 +149,13 @@ func BackupPostgres(backup models.Backup) error {
 //	@return error
 func BackupVolume(backup models.Backup) error {
 	currentTime := time.Now()
+	// make paths
+	folderPath := fmt.Sprintf("/tmp/%s", backup.Name)
+	tarballFileName := fmt.Sprintf("%s-%d.tar.gz", backup.Name, currentTime.Unix())
+	tarballPath := fmt.Sprintf("/tmp/%s", tarballFileName)
+
 	// make tarball
-	tarballPath, tarballFileName, err := createTarball(backup, currentTime)
+	err := createTarball(folderPath, tarballPath)
 	if err != nil {
 		return err
 	}
@@ -176,7 +177,45 @@ func BackupVolume(backup models.Backup) error {
 //	@param backup
 //	@return error
 func BackupMysql(backup models.Backup) error {
-	// TODO mysql dump backup
+	currentTime := time.Now()
+	// Make temp folder for tarball source
+	tmpFolderPath := fmt.Sprintf("/tmp/%s-%d", backup.Name, currentTime.Unix())
+	err := os.MkdirAll(tmpFolderPath, 0755)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpFolderPath)
+
+	// File name: DB_NAME_UNIX_TIMESTAMP.sql
+	dumpFileName := fmt.Sprintf("%s-%d.sql", backup.MysqlDb, currentTime.Unix())
+	dumpFilePath := fmt.Sprintf("%s/%s", tmpFolderPath, dumpFileName)
+
+	// Dump database using native mysqldump
+	cmd := exec.Command("mysqldump", "-h", backup.MysqlHost, "-P", fmt.Sprintf("%d", backup.MysqlPort), "-u", backup.MysqlUser, backup.MysqlDb, "--result-file="+dumpFilePath)
+	cmd.Env = append(os.Environ(), fmt.Sprintf("MYSQL_PWD=%s", backup.MysqlPassword))
+
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("mysqldump failed: %w, output: %s", err, string(output))
+	}
+
+	// Make tarball
+	tarballFileName := fmt.Sprintf("%s-%d.tar.gz", backup.Name, currentTime.Unix())
+	tarballPath := fmt.Sprintf("/tmp/%s", tarballFileName)
+	err = createTarball(tmpFolderPath, tarballPath)
+	if err != nil {
+		return err
+	}
+
+	// Upload to mega
+	uploadNode, err := uploadToMegaAndDelete(tarballPath, tarballFileName, backup.MegaDir)
+	if err != nil {
+		return err
+	}
+	// Delete oldest file(s)
+	err = MegaDeleteFilesByLastCopyCount(backup, uploadNode)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -205,6 +244,16 @@ func CheckConfig() {
 				backup.PgHost, backup.PgPort, backup.PgUser, backup.PgPassword, backup.PgDb))
 			if err != nil {
 				log.Fatalf("Failed to ping PostgreSQL for job '%s': %v", backup.Name, err)
+			}
+			db.Close()
+
+		// Mysql
+		case models.Mysql:
+			// ping
+			db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
+				backup.MysqlUser, backup.MysqlPassword, backup.MysqlHost, backup.MysqlPort, backup.MysqlDb))
+			if err != nil {
+				log.Fatalf("Failed to ping MySQL for job '%s': %v", backup.Name, err)
 			}
 			db.Close()
 		}
