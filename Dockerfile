@@ -1,5 +1,5 @@
 # Use the official Golang image as the base image
-FROM golang:1.26.1-alpine AS build
+FROM golang:1.26.3-alpine AS build
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -16,11 +16,32 @@ COPY . .
 # Build the application
 RUN go build -o mega-backuper
 
-# Start a new stage using a minimal Alpine image
-FROM alpine:latest
+# Start a new stage using a minimal Debian image.
+# Debian is required because Alpine only ships MariaDB client (incompatible
+# with MySQL 8+ caching_sha2_password authentication plugin).
+FROM debian:bookworm-slim
 
-# Install postgresql-client and mariadb-client for native dumps
-RUN apk add --no-cache postgresql-client mariadb-client
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install postgresql-client and the official MySQL community client.
+# The MySQL APT repository provides the real `mysqldump` (not the MariaDB
+# alias) which supports the caching_sha2_password auth plugin.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        wget \
+        gnupg \
+        lsb-release \
+        postgresql-client \
+    && wget -qO /tmp/mysql-apt-config.deb \
+        https://repo.mysql.com/mysql-apt-config_0.8.39-1_all.deb \
+    && echo "mysql-apt-config mysql-apt-config/select-server select mysql-8.4-lts" \
+        | debconf-set-selections \
+    && dpkg -i /tmp/mysql-apt-config.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends mysql-community-client \
+    && apt-get purge -y --auto-remove wget gnupg lsb-release \
+    && rm -rf /var/lib/apt/lists/* /tmp/mysql-apt-config.deb
 
 # Set the working directory inside the container
 WORKDIR /app
