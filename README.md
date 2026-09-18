@@ -91,7 +91,7 @@ The output files are named using the following pattern: `NAME-UNIX_TIMESTAMP.EXT
 
 #### PostgreSQL backup properties
 
-> This project uses native `pg_dump` to dump PostgreSQL database, so it supports all of `pg_dump` features like triggers, views, functions, etc.
+> This project uses native `pg_dump` to dump PostgreSQL database, so it supports all of `pg_dump` features like triggers, views, functions, etc. The image ships `pg_dump` 18; the PostgreSQL server major version must be 18 or older (a newer client can dump older servers).
 
 | Property   | Type   | Description                                                                              | Required |
 |------------|--------|------------------------------------------------------------------------------------------|----------|
