@@ -11,12 +11,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"github.com/t3rm1n4l/go-mega"
 )
+
+var pgDumpVersionRe = regexp.MustCompile(`\(PostgreSQL\) (\d+)`)
 
 // Create tarball and return path to it.
 //
@@ -25,6 +30,7 @@ import (
 //	@return string Path to tarball.
 //	@return string Path to tarball.
 //	@return error
+//
 // Create tarball from source path to target path.
 //
 //	@param sourcePath
@@ -225,6 +231,10 @@ func CheckConfig() {
 	s := GetSingleton()
 	log.Println("Checking settings...")
 
+	var pgDumpMajor int
+	var pgDumpMajorErr error
+	pgDumpMajorLoaded := false
+
 	// cycle trough backups
 	for _, backup := range s.Settings.Backups {
 		switch backup.Type {
@@ -239,13 +249,16 @@ func CheckConfig() {
 
 		// Postgres
 		case models.Postgres:
-			// ping
-			db, err := sql.Open("postgres", fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-				backup.PgHost, backup.PgPort, backup.PgUser, backup.PgPassword, backup.PgDb))
-			if err != nil {
-				log.Fatalf("Failed to ping PostgreSQL for job '%s': %v", backup.Name, err)
+			if !pgDumpMajorLoaded {
+				pgDumpMajor, pgDumpMajorErr = getPgDumpMajor()
+				pgDumpMajorLoaded = true
 			}
-			db.Close()
+			if pgDumpMajorErr != nil {
+				log.Fatalf("Failed to determine pg_dump version: %v", pgDumpMajorErr)
+			}
+			if err := checkPostgresBackup(backup, pgDumpMajor); err != nil {
+				log.Fatalf("%v", err)
+			}
 
 		// Mysql
 		case models.Mysql:
@@ -258,4 +271,63 @@ func CheckConfig() {
 			db.Close()
 		}
 	}
+}
+
+// parsePgDumpMajor extracts the PostgreSQL major version from `pg_dump --version` output.
+func parsePgDumpMajor(versionOutput string) (int, error) {
+	matches := pgDumpVersionRe.FindStringSubmatch(versionOutput)
+	if len(matches) < 2 {
+		return 0, fmt.Errorf("could not parse pg_dump version from: %s", strings.TrimSpace(versionOutput))
+	}
+	major, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0, fmt.Errorf("could not parse pg_dump major version: %w", err)
+	}
+	return major, nil
+}
+
+// pgMajorFromServerVersionNum converts PostgreSQL server_version_num to a major version.
+// For PostgreSQL 10+, server_version_num is major*10000 + minor (e.g. 17.11 -> 170011).
+func pgMajorFromServerVersionNum(versionNum int) int {
+	return versionNum / 10000
+}
+
+func getPgDumpMajor() (int, error) {
+	output, err := exec.Command("pg_dump", "--version").CombinedOutput()
+	if err != nil {
+		return 0, fmt.Errorf("pg_dump --version failed: %w, output: %s", err, string(output))
+	}
+	return parsePgDumpMajor(string(output))
+}
+
+func checkPostgresBackup(backup models.Backup, pgDumpMajor int) error {
+	db, err := sql.Open("postgres", fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		backup.PgHost, backup.PgPort, backup.PgUser, backup.PgPassword, backup.PgDb))
+	if err != nil {
+		return fmt.Errorf("failed to ping PostgreSQL for job '%s': %w", backup.Name, err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("failed to ping PostgreSQL for job '%s': %w", backup.Name, err)
+	}
+
+	var versionNumStr string
+	if err := db.QueryRow("SHOW server_version_num").Scan(&versionNumStr); err != nil {
+		return fmt.Errorf("failed to read PostgreSQL version for job '%s': %w", backup.Name, err)
+	}
+	serverVersionNum, err := strconv.Atoi(versionNumStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse PostgreSQL version for job '%s': %w", backup.Name, err)
+	}
+
+	serverMajor := pgMajorFromServerVersionNum(serverVersionNum)
+	if !pgDumpSupportsServer(pgDumpMajor, serverMajor) {
+		return fmt.Errorf("pg_dump version %d is older than PostgreSQL server %d for job '%s'; pg_dump must be the same major version or newer", pgDumpMajor, serverMajor, backup.Name)
+	}
+	return nil
+}
+
+func pgDumpSupportsServer(dumpMajor, serverMajor int) bool {
+	return dumpMajor >= serverMajor
 }
