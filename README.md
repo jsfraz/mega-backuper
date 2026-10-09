@@ -84,6 +84,7 @@ The output files are named using the following pattern: `NAME-UNIX_TIMESTAMP.EXT
 | megaDir          | string | Remote Mega.nz destination directory                  | true     |
 | lastCopies       | int    | Number of last copies to keep                         | false    |
 | cron             | string | Cron expression for scheduling backup                 | true     |
+| runOnStart       | bool   | Run this backup once when the program starts          | false    |
 | type             | string | Backup type (postgres, mysql, volume)                 | true     |
 
 <!-- FIXME https://github.com/t3rm1n4l/go-mega/pull/46 -->

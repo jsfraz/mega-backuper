@@ -66,10 +66,18 @@ func main() {
 		}
 
 		bck := backup
-		scheduler.Cron(backup.Cron).Do(handleBackup, bck, action)
+		jobScheduler := scheduler.Cron(backup.Cron)
+		if backup.RunOnStart {
+			jobScheduler = jobScheduler.StartImmediately()
+		}
+		jobScheduler.Do(handleBackup, bck, action)
 		exprDesc, _ := cron.NewDescriptor()
 		desc, _ := exprDesc.ToDescription(backup.Cron, cron.Locale_en)
-		log.Printf("Added [%s] backup job '%s': %s", backup.Type, backup.Name, desc)
+		runOnStartNote := ""
+		if backup.RunOnStart {
+			runOnStartNote = " (runs on start)"
+		}
+		log.Printf("Added [%s] backup job '%s': %s%s", backup.Type, backup.Name, desc, runOnStartNote)
 	}
 	// check if job list is empty or not
 	if len(scheduler.Jobs()) != 0 {
