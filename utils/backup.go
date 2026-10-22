@@ -266,6 +266,9 @@ func CheckConfig() {
 			db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
 				backup.MysqlUser, backup.MysqlPassword, backup.MysqlHost, backup.MysqlPort, backup.MysqlDb))
 			if err != nil {
+				log.Fatalf("Failed to open MySQL connection for job '%s': %v", backup.Name, err)
+			}
+			if err := db.Ping(); err != nil {
 				log.Fatalf("Failed to ping MySQL for job '%s': %v", backup.Name, err)
 			}
 			db.Close()
