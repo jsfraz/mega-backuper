@@ -1,6 +1,6 @@
 module jsfraz/mega-backuper
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/go-co-op/gocron v1.37.0
