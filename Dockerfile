@@ -1,5 +1,5 @@
 # Use the official Golang image as the base image
-FROM golang:1.27.2-alpine AS build
+FROM golang:1.27.3-alpine AS build
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN go build -o mega-backuper
+RUN go build -trimpath -ldflags="-s -w" -o mega-backuper .
 
 # Start a new stage using a minimal Debian image.
 # Debian is required because Alpine only ships MariaDB client (incompatible
@@ -57,8 +57,8 @@ WORKDIR /app
 # Copy the built binary from the previous stage
 COPY --from=build --chown=app:app /app/mega-backuper .
 
-# Copy mega-backuper.json
-COPY --chown=app:app backuper.json /app/backuper.json
+# The config is intentionally not baked into the image - mount backuper.json
+# to /app/backuper.json (see docker-compose.yaml).
 
 USER app
 

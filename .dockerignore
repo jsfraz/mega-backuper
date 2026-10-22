@@ -1,0 +1,10 @@
+.git
+.github
+.vscode
+AGENTS.md
+README.md
+Dockerfile
+.dockerignore
+docker-compose.yaml
+backuper.json
+backuper_test*.json
