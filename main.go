@@ -4,12 +4,22 @@ import (
 	"jsfraz/mega-backuper/models"
 	"jsfraz/mega-backuper/utils"
 	"log"
+	"os"
+	"os/signal"
+	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/go-co-op/gocron"
 	"github.com/lnquy/cron"
 	"github.com/t3rm1n4l/go-mega"
 )
+
+// shutdownGrace is how long a SIGTERM/SIGINT waits for running backups.
+const shutdownGrace = 30 * time.Second
+
+// inFlight counts backup jobs currently running.
+var inFlight atomic.Int32
 
 func main() {
 	// singleton
@@ -23,21 +33,25 @@ func main() {
 	// load settings or exit
 	settings := utils.LoadSettings()
 	// validate struct or exit
-	err := utils.ValidateSettings(settings)
-	if err != nil {
+	if err := utils.ValidateSettings(settings); err != nil {
 		log.Fatalln(err)
 	}
 	// add settings to singleton
 	singleton.Settings = settings
 
 	// Check config
-	utils.CheckConfig()
+	if err := utils.CheckConfig(); err != nil {
+		log.Fatalln(err)
+	}
 
 	// add mega instance to singleton
 	singleton.Mega = mega.New()
 
 	// login or exit
 	utils.MegaLogin()
+
+	// remove leftovers from an interrupted previous run
+	utils.SweepStaleTempFiles()
 
 	// task scheduler
 	scheduler := gocron.NewScheduler(time.UTC)
@@ -87,14 +101,48 @@ func main() {
 		log.Printf("Added [%s] backup job '%s': %s%s", backup.Type, backup.Name, description, runOnStartNote)
 	}
 	// check if job list is empty or not
-	if len(scheduler.Jobs()) != 0 {
-		// start blocking
-		log.Printf("Started scheduler. Total jobs: %d", len(scheduler.Jobs()))
-		scheduler.StartBlocking()
-	} else {
+	if len(scheduler.Jobs()) == 0 {
 		// exit
 		log.Fatalln("No backup job was set.")
 	}
+
+	log.Printf("Started scheduler. Total jobs: %d", len(scheduler.Jobs()))
+	scheduler.StartAsync()
+
+	// graceful shutdown on container stop
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+	received := <-stop
+	log.Printf("Received %s, stopping scheduler (waiting up to %s for running jobs)...", received, shutdownGrace)
+	scheduler.Stop()
+
+	deadline := time.Now().Add(shutdownGrace)
+	for time.Now().Before(deadline) {
+		// inFlight covers our own counter, IsRunning closes the window between
+		// gocron dispatching a job and handleBackup incrementing the counter
+		if inFlight.Load() == 0 && !anyJobRunning(scheduler.Jobs()) {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if remaining := inFlight.Load(); remaining > 0 || anyJobRunning(scheduler.Jobs()) {
+		log.Printf("Shutdown grace period expired with %d backup job(s) still running.", remaining)
+		os.Exit(1)
+	}
+	log.Println("Shutdown complete.")
+}
+
+// anyJobRunning reports whether any scheduled job is currently executing.
+//
+//	@param jobs
+//	@return bool
+func anyJobRunning(jobs []*gocron.Job) bool {
+	for _, job := range jobs {
+		if job.IsRunning() {
+			return true
+		}
+	}
+	return false
 }
 
 // backupAction maps a backup type to its backup function.
@@ -121,6 +169,9 @@ func backupAction(backupType models.BackupType) (func(models.Backup) error, bool
 //	@param backupFunc
 func handleBackup(backup models.Backup, backupFunc func(backup models.Backup) error) {
 	log.Printf("Running [%s] backup job '%s'...", backup.Type, backup.Name)
+	inFlight.Add(1)
+	defer inFlight.Add(-1)
+
 	err := backupFunc(backup)
 	if err != nil {
 		log.Printf("Failed to run [%s] backup job '%s': %s", backup.Type, backup.Name, err)
