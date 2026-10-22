@@ -56,15 +56,20 @@ The `nginx` backup will backup the `nginx-example` container's html directory ev
 
 <https://github.com/jsfraz/mega-backuper/blob/master/docker-compose.yaml>
 
+> The image does not ship a `backuper.json`; mount your config to `/app/backuper.json`. The container exits with a clear error when the file is missing.
+
 ## Export formats
 
-The output files are named using the following pattern: `NAME-UNIX_TIMESTAMP.EXTENSION`.
+The output files are named `UNIX_TIMESTAMP`-suffixed: PostgreSQL dumps use the database name (`pgDb-UNIX_TIMESTAMP.backup`), MySQL and volume archives use the job name (`name-UNIX_TIMESTAMP.tar.gz`).
 
 | Backup Type | Extension | Internal Format                                                         |
 |-------------|-----------|-------------------------------------------------------------------------|
 | `postgres`  | `.backup` | Custom PostgreSQL binary format (`pg_dump -Fc`). Compressed internally. |
 | `mysql`     | `.tar.gz` | Gunzipped tarball containing `.sql` dump.                               |
 | `volume`    | `.tar.gz` | Gunzipped tarball containing volume contents.                           |
+
+Old copies are pruned from `megaDir` after a successful upload when `lastCopies` is set. Only files produced by the same job are considered (PostgreSQL: `pgDb-UNIX_TIMESTAMP.backup`, MySQL/volume: `name-UNIX_TIMESTAMP.tar.gz`), so several jobs may share one `megaDir` without deleting each other's backups. Directories are never touched.
+
 
 ## Config file properties
 
@@ -80,19 +85,23 @@ The output files are named using the following pattern: `NAME-UNIX_TIMESTAMP.EXT
 
 | Property         | Type   | Description                                           | Required |
 |------------------|--------|-------------------------------------------------------|----------|
-| name             | string | Backup name                                           | true     |
+| name             | string | Backup name (letters, digits, `.`, `_`, `-`)          | true     |
 | megaDir          | string | Remote Mega.nz destination directory                  | true     |
-| lastCopies       | int    | Number of last copies to keep                         | false    |
-| cron             | string | Cron expression for scheduling backup                 | true     |
+| lastCopies       | int    | Number of this job's archives to keep                 | false    |
+| cron             | string | Cron expression (5 fields, or 6 with leading seconds) | true     |
 | runOnStart       | bool   | Run this backup once when the program starts          | false    |
 | type             | string | Backup type (postgres, mysql, volume)                 | true     |
+
+`cron` accepts standard 5-field expressions, 6-field expressions with a leading seconds field, and descriptors such as `@daily` or `@every 1h`. Expressions with a year field (7 fields) are rejected at startup. Invalid expressions and invalid config values stop the container immediately instead of silently skipping a job.
+
+Running the same job twice in parallel is prevented; different jobs may run at the same time.
 
 <!-- FIXME https://github.com/t3rm1n4l/go-mega/pull/46 -->
 <!-- | destroyOldCopies | bool   | Destroy old copies instead moving them to rubbish bin | false    | -->
 
 #### PostgreSQL backup properties
 
-> This project uses native `pg_dump` to dump PostgreSQL database, so it supports all of `pg_dump` features like triggers, views, functions, etc. The image ships `pg_dump` 18; the PostgreSQL server major version must be 18 or older (a newer client can dump older servers).
+> This project uses native `pg_dump` to dump PostgreSQL database, so it supports all of `pg_dump` features like triggers, views, functions, etc. The image ships `pg_dump` 18; the PostgreSQL server major version must be 18 or older (a newer client can dump older servers). The password is passed through a temporary `0600` `.pgpass` file, never through the environment. A dump that takes longer than 2 hours is aborted.
 
 | Property   | Type   | Description                                                                              | Required |
 |------------|--------|------------------------------------------------------------------------------------------|----------|
@@ -104,7 +113,7 @@ The output files are named using the following pattern: `NAME-UNIX_TIMESTAMP.EXT
 
 #### MySQL/MariaDB backup properties
 
-> This project uses native `mysqldump` to dump MySQL/MariaDB database.
+> This project uses native `mysqldump` to dump MySQL/MariaDB database. The dump is taken in a single transaction (`--single-transaction`) together with routines and events, so InnoDB tables are consistent; non-transactional tables (MyISAM/Aria) may still change during the dump. The password is passed through a temporary `0600` option file, never through the environment. A dump that takes longer than 2 hours is aborted.
 
 | Property      | Type   | Description                                                        | Required |
 |---------------|--------|--------------------------------------------------------------------|----------|
@@ -116,4 +125,4 @@ The output files are named using the following pattern: `NAME-UNIX_TIMESTAMP.EXT
 
 #### Volume backup properties
 
-There are no additional properties for volume backups, however, the `name` property will be used as the directory name mounted to backuper container. Make sure your config looks like this example, where name of the job (`nginx`) is the same as the directory name mounted to backuper container (`/tmp/nginx`).
+There are no additional properties for volume backups, however, the `name` property will be used as the directory name mounted to backuper container. Make sure your config looks like this example, where name of the job (`nginx`) is the same as the directory name mounted to backuper container (`/tmp/nginx`). Symlinks are stored as symlinks (their target is preserved, not dereferenced); sockets, FIFOs and device nodes are skipped with a warning.

@@ -10,15 +10,15 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// Reads JSON from file. Exits wit hstatus 1 on error.
+// Reads JSON from file. Exits with status 1 on error.
 //
-//	@return *models.BackupSettings
+//	@return models.BackupSettings
 func LoadSettings() models.BackupSettings {
 	log.Println("Loading settings..")
 	// read json from file
 	data, err := os.ReadFile("backuper.json")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to read backuper.json (is the config mounted?): %v", err)
 	}
 	// unmarshall json
 	var settings models.BackupSettings
@@ -30,23 +30,23 @@ func LoadSettings() models.BackupSettings {
 	return settings
 }
 
-// Validates struct. Exits wit hstatus 1 on error.
+// Validates struct.
 //
 //	@param settings
 //	@return error
 func ValidateSettings(settings models.BackupSettings) error {
 	log.Println("Validating settings..")
-	validator := validator.New()
-	validators.RegisterBackupSettingsValidators(validator)
+	v := validator.New()
+	if err := validators.RegisterBackupSettingsValidators(v); err != nil {
+		return err
+	}
 	// validate BackupSettings struct
-	err := validator.Struct(settings)
-	if err != nil {
+	if err := v.Struct(settings); err != nil {
 		return err
 	}
 	// validate Backup struct
 	for _, element := range settings.Backups {
-		err = validator.Struct(element)
-		if err != nil {
+		if err := v.Struct(element); err != nil {
 			return err
 		}
 	}
